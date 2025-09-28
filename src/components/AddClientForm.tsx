@@ -1,15 +1,23 @@
 // src/components/AddClientForm.tsx
 import { useState, useEffect } from 'react';
 import {
-  Button,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
+  Button,
   Box,
   Typography,
+  Paper,
+  IconButton,
 } from '@mui/material';
+import {
+  Close as CloseIcon,
+  AddAPhoto as AddAPhotoIcon,
+  Mic as MicIcon,
+  Download as DownloadIcon,
+} from '@mui/icons-material';
 import { addClient, updateClient } from '../services/clientService';
 import { addHistoryEntry } from '../services/historyService';
 import type { Client } from '../types';
@@ -29,7 +37,7 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         fullName: client.fullName,
         phone: client.phone,
         address: client.address,
-        meetingDate: client.meetingDate.slice(0, 16), // "2025-09-24T19:00"
+        meetingDate: client.meetingDate.slice(0, 16),
         status: client.status,
         propertyPhotos: client.propertyPhotos || [],
       }
@@ -44,6 +52,7 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
 
   const [formData, setFormData] = useState(initialData);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -80,13 +89,21 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
     const files = e.target.files;
     if (!files) return;
 
+    const newPhotos: string[] = [];
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
-        setPhotos((prev) => [...prev, reader.result as string]);
+        newPhotos.push(reader.result as string);
+        if (newPhotos.length === files.length) {
+          setPhotos((prev) => [...prev, ...newPhotos]);
+        }
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleVoiceInput = () => {
@@ -99,6 +116,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
     recognition.lang = 'ru-RU';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
+
+    setIsRecording(true);
 
     recognition.start();
 
@@ -114,11 +133,17 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         phone: parsed.phone || prev.phone,
         address: parsed.address || prev.address,
       }));
+      setIsRecording(false);
     };
 
     recognition.onerror = (event: any) => {
       console.error('Ошибка голосового ввода:', event.error);
+      setIsRecording(false);
       alert('Не удалось распознать речь. Попробуйте снова.');
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
     };
   };
 
@@ -128,7 +153,7 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         fullName: formData.fullName,
         phone: formData.phone,
         address: formData.address,
-        meetingDate: formData.meetingDate, // ← это строка вида "2025-09-24T19:00"
+        meetingDate: formData.meetingDate,
         status: formData.status,
       };
 
@@ -164,20 +189,59 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
   const title = client ? 'Редактировать клиента' : 'Добавить нового клиента';
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          {/* Голосовой ввод */}
-          <Box sx={{ mb: 2 }}>
-            <Button variant="contained" color="secondary" onClick={handleVoiceInput} sx={{ minWidth: '160px', mb: 1 }}>
-              🎤 Диктовать всё
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              Пример: <i>«ФИО — Щемелев Алексей. Телефон — 9155151. Адрес — улица Ленина, 10»</i>
-            </Typography>
-          </Box>
+    <Dialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="sm"
+      fullWidth
+      sx={{
+        '& .MuiDialog-paper': {
+          borderRadius: '20px',
+          border: '1px solid',
+          borderColor: 'divider',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontWeight: 'bold',
+          fontSize: '1.25rem',
+          p: 2.5,
+        }}
+      >
+        {title}
+        <IconButton onClick={onCancel} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
+      <DialogContent sx={{ p: 2.5 }}>
+        {/* Голосовой ввод */}
+        <Box sx={{ mb: 3 }}>
+          <Button
+            variant={isRecording ? 'contained' : 'outlined'}
+            color={isRecording ? 'error' : 'secondary'}
+            startIcon={isRecording ? <DownloadIcon /> : <MicIcon />}
+            onClick={handleVoiceInput}
+            fullWidth
+            sx={{
+              borderRadius: '16px',
+              py: 1.2,
+              fontWeight: 'medium',
+              textTransform: 'none',
+            }}
+          >
+            {isRecording ? 'Говорите...' : 'Диктовать данные'}
+          </Button>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.85rem' }}>
+            Пример: <i>«ФИО — Щемелев Алексей. Телефон — 9155151. Адрес — улица Ленина, 10»</i>
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
             label="ФИО"
             name="fullName"
@@ -185,6 +249,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
             onChange={handleChange}
             fullWidth
             required
+            size="small"
+            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
           />
           <TextField
             label="Телефон"
@@ -193,6 +259,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
             onChange={handleChange}
             fullWidth
             required
+            size="small"
+            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
           />
           <TextField
             label="Адрес"
@@ -201,6 +269,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
             onChange={handleChange}
             fullWidth
             required
+            size="small"
+            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
           />
           <TextField
             label="Дата и время встречи"
@@ -209,46 +279,104 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
             value={formData.meetingDate}
             onChange={handleChange}
             fullWidth
-            InputLabelProps={{ shrink: true }}
             required
+            size="small"
+            InputLabelProps={{ shrink: true }}
+            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
           />
 
           {/* Фото объекта */}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Фото объекта (можно выбрать несколько)
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+              Фото объекта
             </Typography>
             <input
               type="file"
               multiple
               accept="image/*"
               onChange={handlePhotoUpload}
-              style={{ display: 'block', marginBottom: '8px' }}
+              id="photo-upload"
+              style={{ display: 'none' }}
             />
+            <label htmlFor="photo-upload">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<AddAPhotoIcon />}
+                fullWidth
+                sx={{ borderRadius: '16px', py: 1.2 }}
+              >
+                Загрузить фото
+              </Button>
+            </label>
+
             {photos.length > 0 && (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                {photos.map((photo, index) => (
-                  <img
-                    key={index}
-                    src={photo}
-                    alt={`Фото ${index + 1}`}
-                    style={{
-                      width: '60px',
-                      height: '60px',
-                      objectFit: 'cover',
-                      borderRadius: '4px',
-                    }}
-                  />
-                ))}
-              </Box>
+              <Paper
+                sx={{
+                  p: 1.5,
+                  mt: 1.5,
+                  borderRadius: '16px',
+                  backgroundColor: 'background.default',
+                }}
+              >
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {photos.map((photo, index) => (
+                    <Box key={index} sx={{ position: 'relative' }}>
+                      <img
+                        src={photo}
+                        alt={`Фото ${index + 1}`}
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: 'cover',
+                          borderRadius: '12px',
+                        }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => removePhoto(index)}
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          backgroundColor: 'error.main',
+                          color: 'white',
+                          width: 20,
+                          height: 20,
+                          '&:hover': { backgroundColor: 'error.dark' },
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              </Paper>
             )}
           </Box>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel}>Отмена</Button>
-        <Button variant="contained" onClick={handleSave}>
-          Сохранить
+
+      <DialogActions sx={{ p: 2.5, pt: 0 }}>
+        <Button
+          onClick={onCancel}
+          variant="outlined"
+          sx={{ borderRadius: '12px', px: 3, py: 1.2 }}
+        >
+          Отмена
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          sx={{
+            borderRadius: '12px',
+            px: 3,
+            py: 1.2,
+            bgcolor: '#1976d2',
+            '&:hover': { bgcolor: '#1565c0' },
+          }}
+        >
+          {client ? 'Сохранить' : 'Добавить'}
         </Button>
       </DialogActions>
     </Dialog>
