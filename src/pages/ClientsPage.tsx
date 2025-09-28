@@ -1,6 +1,13 @@
+// src/pages/ClientsPage.tsx
 import { useState, useEffect } from 'react';
-import { TextField, Button, Box, Typography } from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+} from '@mui/material';
+import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
 import ClientCard from '../components/ClientCard';
 import type { Client } from '../types';
 import { getClients, updateClient, deleteClient } from '../services/clientService';
@@ -28,19 +35,14 @@ export default function ClientsPage() {
   );
 
   const handleAddClient = () => {
-    setIsAddFormOpen(true); // открываем форму
+    setIsAddFormOpen(true);
   };
 
-  const handleUpdateClient = async (id: string, updatedData: Partial<Client>) => {
-    await updateClient(id, updatedData);
+  const handleCloseForm = () => {
+    setIsAddFormOpen(false);
+    setEditingClient(null);
+    setSearchTerm('');
     loadClients();
-  };
-
-  const handleDeleteClient = async (id: string) => {
-    if (window.confirm('Удалить клиента?')) {
-      await deleteClient(id);
-      loadClients();
-    }
   };
 
   const handleEditClient = (client: Client) => {
@@ -48,50 +50,68 @@ export default function ClientsPage() {
     setIsAddFormOpen(true);
   };
 
+  const handleUpdateClient = async (id: string, updatedData: Partial<Client>) => {
+    await updateClient(id, updatedData);
+    loadClients();
+  };
+
+  const handleDeleteClient = async (id: string, fullName: string) => {
+    if (window.confirm(`Удалить клиента "${fullName}"?`)) {
+      await deleteClient(id);
+      loadClients();
+    }
+  };
+
   return (
-    <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>Клиенты</Typography>
-      <Typography variant="body1" color="text.secondary" gutterBottom>
+    <Box sx={{ p: { xs: 1.5, sm: 2 }, maxWidth: 1200, mx: 'auto' }}>
+      <Typography variant="h5" fontWeight="bold" gutterBottom>
+        Клиенты
+      </Typography>
+      <Typography variant="body2" color="text.secondary" gutterBottom>
         Управляйте списком ваших клиентов и встреч.
       </Typography>
 
-      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         <TextField
           fullWidth
-          variant="outlined"
-          placeholder="Поиск по имени, адресу или телефону..."
+          size="small"
+          placeholder="Поиск по ФИО, телефону или адресу..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
-            startAdornment: <SearchIcon />,
+            startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} />,
+            sx: { borderRadius: '12px' },
           }}
         />
-        <Button variant="contained" onClick={handleAddClient}>Добавить</Button>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 1, mb: 1, borderBottom: '1px solid #ddd', pb: 1 }}>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>Фото</Typography>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>ФИО</Typography>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>Телефон</Typography>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>Адрес</Typography>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>Дата встречи</Typography>
-        <Typography variant="caption" sx={{ flex: 1, textAlign: 'center' }}>Действия</Typography>
+        <Button
+          variant="contained"
+          onClick={handleAddClient}
+          sx={{
+            minWidth: { xs: 'auto', sm: 120 },
+            height: 40,
+            borderRadius: '12px',
+            bgcolor: '#1976d2',
+            '&:hover': { bgcolor: '#1565c0' },
+          }}
+        >
+          <AddIcon sx={{ mr: { xs: 0, sm: 1 } }} />
+          <span style={{ display: 'none' }} className="sm:inline"> Добавить </span>
+        </Button>
       </Box>
 
       {filteredClients.length > 0 ? (
-        filteredClients.map(client => (
+        filteredClients.map((client) => (
           <ClientCard
             key={client.id!}
             client={client}
-            onEdit={() => handleEditClient(client)} 
-            onDelete={() => handleDeleteClient(client.id!)}
+            onEdit={() => handleEditClient(client)}
+            onDelete={() => handleDeleteClient(client.id!, client.fullName)}
             onMarkCompleted={() => handleUpdateClient(client.id!, { status: 'completed' })}
             onMarkCancelled={() => handleUpdateClient(client.id!, { status: 'cancelled' })}
             onShowOnMap={() => {
               const address = client.address.trim();
               if (address) {
                 const encoded = encodeURIComponent(address);
-                // Открываем Яндекс.Карты
                 window.open(`https://yandex.ru/maps/?text=${encoded}`, '_blank');
               } else {
                 alert('Адрес не указан');
@@ -101,11 +121,8 @@ export default function ClientsPage() {
               const address = client.address.trim();
               if (address) {
                 const encoded = encodeURIComponent(address);
-                // Пытаемся открыть Яндекс.Навигатор (на телефоне)
                 const naviUrl = `yandexnavi://build_route_on_map?&lat=0&lon=0&to=${encoded}`;
                 const mapsUrl = `https://yandex.ru/maps/?rtext=~${encoded}&rtt=auto`;
-
-                // Сначала пробуем навигатор, если не получится — карты
                 const win = window.open(naviUrl, '_blank');
                 if (!win || win.closed || win.outerHeight === 0) {
                   window.open(mapsUrl, '_blank');
@@ -117,24 +134,27 @@ export default function ClientsPage() {
           />
         ))
       ) : (
-        <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-          Список клиентов пуст.
-        </Typography>
+        <Paper
+          sx={{
+            p: 3,
+            textAlign: 'center',
+            borderRadius: '16px',
+            backgroundColor: 'background.default',
+          }}
+        >
+          <Typography variant="body1" color="text.secondary">
+            Список клиентов пуст.
+          </Typography>
+        </Paper>
       )}
-      
+
       <AddClientForm
         open={isAddFormOpen}
         onCancel={() => {
           setIsAddFormOpen(false);
           setEditingClient(null);
-          // не обновляем список — просто закрываем
         }}
-        onSave={() => {
-          setIsAddFormOpen(false);
-          setEditingClient(null);
-          setSearchTerm(''); // сбрасываем поиск
-          loadClients();     // 👈 обновляем список ТОЛЬКО после сохранения
-        }}
+        onSave={handleCloseForm}
         client={editingClient || undefined}
       />
     </Box>
