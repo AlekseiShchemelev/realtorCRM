@@ -1,9 +1,16 @@
 // src/components/ClientCard.tsx
 import { useState } from 'react';
-import { Card, CardMedia, Typography, Box } from '@mui/material';
+import {
+  Card,
+  CardMedia,
+  Typography,
+  Box,
+} from '@mui/material';
 import ActionMenu from './ActionMenu';
 import PropertyGallery from './PropertyGallery';
 import type { Client } from '../types';
+import { Link as LinkIcon } from '@mui/icons-material';
+import { Button } from '@mui/material';
 
 interface ClientCardProps {
   client: Client;
@@ -12,7 +19,7 @@ interface ClientCardProps {
   onMarkCompleted: () => void;
   onMarkCancelled: () => void;
   onShowOnMap: () => void;
-  onShowRoute: () => void; // ← добавлено
+  onShowRoute: () => void;
 }
 
 export default function ClientCard({
@@ -22,7 +29,7 @@ export default function ClientCard({
   onMarkCompleted,
   onMarkCancelled,
   onShowOnMap,
-  onShowRoute, // ← добавлено
+  onShowRoute,
 }: ClientCardProps) {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
@@ -34,7 +41,7 @@ export default function ClientCard({
 
   return (
     <Card sx={{ display: 'flex', alignItems: 'center', mb: 1, p: 1 }}>
-      {/* Миниатюра: первое фото объекта или аватар */}
+      {/* Миниатюра */}
       <Box sx={{ position: 'relative', mr: 1 }}>
         <CardMedia
           component="img"
@@ -45,7 +52,6 @@ export default function ClientCard({
           }
           alt="Фото объекта"
         />
-        {/* Метка с количеством фото (если >1) */}
         {client.propertyPhotos && client.propertyPhotos.length > 1 && (
           <Box
             sx={{
@@ -73,17 +79,63 @@ export default function ClientCard({
         )}
       </Box>
 
+      {/* Основная информация */}
       <Box sx={{ flex: 1 }}>
         <Typography variant="subtitle1">{client.fullName}</Typography>
         <Typography variant="body2" color="text.secondary">
           {client.phone}
         </Typography>
-      </Box>
-      <Box sx={{ flex: 1, textAlign: 'center' }}>
-        <Typography variant="body2">{client.address}</Typography>
-      </Box>
-      <Box sx={{ flex: 1, textAlign: 'center' }}>
-        <Typography variant="body2">
+        <Typography variant="caption">{client.address}</Typography>
+
+        {/* Комментарии */}
+        {client.comments && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              mt: 0.5,
+              fontSize: '0.85rem',
+              fontStyle: 'italic',
+              lineHeight: 1.4,
+              wordBreak: 'break-word',
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            {client.comments}
+          </Typography>
+        )}
+
+        {/* Ссылка на объявление */}
+        {client.listingUrl && (
+          <Box sx={{ mt: 0.5 }}>
+            <Button
+              component="a"
+              href={client.listingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              variant="outlined"
+              sx={{
+                borderRadius: '12px',
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                fontWeight: 'medium',
+                color: 'primary.main',
+                borderColor: 'primary.main',
+                '&:hover': {
+                  backgroundColor: 'primary.lighter',
+                  borderColor: 'primary.dark',
+                },
+              }}
+              startIcon={<LinkIcon fontSize="small" />}
+            >
+              Объявление
+            </Button>
+          </Box>
+        )}
+
+        {/* Дата встречи */}
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {new Date(client.meetingDate).toLocaleDateString()}<br />
           {new Date(client.meetingDate).toLocaleTimeString([], {
             hour: '2-digit',
@@ -91,6 +143,8 @@ export default function ClientCard({
           })}
         </Typography>
       </Box>
+
+      {/* Действия */}
       <Box>
         <ActionMenu
           onEdit={onEdit}
@@ -98,7 +152,7 @@ export default function ClientCard({
           onMarkCompleted={onMarkCompleted}
           onMarkCancelled={onMarkCancelled}
           onShowOnMap={onShowOnMap}
-          onShowRoute={onShowRoute} // ← передаём
+          onShowRoute={onShowRoute}
         />
       </Box>
 
