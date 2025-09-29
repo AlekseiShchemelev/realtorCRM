@@ -63,7 +63,7 @@ export default function ClientsPage() {
   };
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 2 }, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 1200, width: '100%' }}>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
         Клиенты
       </Typography>
@@ -95,7 +95,9 @@ export default function ClientsPage() {
           }}
         >
           <AddIcon sx={{ mr: { xs: 0, sm: 1 } }} />
-          <span style={{ display: 'none' }} className="sm:inline"> Добавить </span>
+        <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+          Добавить
+        </Box>
         </Button>
       </Box>
 

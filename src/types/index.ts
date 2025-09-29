@@ -1,3 +1,4 @@
+// src/types/index.ts
 export interface Client {
   id?: string;
   fullName: string;
@@ -5,8 +6,10 @@ export interface Client {
   address: string;
   meetingDate: string;
   status: 'planned' | 'completed' | 'cancelled';
-  createdAt?: string;
+  createdAt: string;
   propertyPhotos?: string[];
+  listingUrl?: string;   // ← новое
+  comments?: string;     // ← новое
 }
 
 export interface HistoryEntry {

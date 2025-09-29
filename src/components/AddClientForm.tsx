@@ -15,14 +15,12 @@ import {
 import {
   Close as CloseIcon,
   AddAPhoto as AddAPhotoIcon,
-  Mic as MicIcon,
-  Download as DownloadIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import { addClient, updateClient } from '../services/clientService';
 import { addHistoryEntry } from '../services/historyService';
 import type { Client } from '../types';
-import { isSpeechRecognitionSupported, createSpeechRecognition } from '../utils/speechUtils';
-import { parseVoiceInput } from '../utils/voiceParser';
+import VoiceTextField from './VoiceTextField';
 
 interface AddClientFormProps {
   open: boolean;
@@ -40,6 +38,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         meetingDate: client.meetingDate.slice(0, 16),
         status: client.status,
         propertyPhotos: client.propertyPhotos || [],
+        listingUrl: client.listingUrl || '',
+        comments: client.comments || '',
       }
     : {
         fullName: '',
@@ -48,11 +48,12 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         meetingDate: new Date().toISOString().slice(0, 16),
         status: 'planned',
         propertyPhotos: [],
+        listingUrl: '',
+        comments: '',
       };
 
   const [formData, setFormData] = useState(initialData);
   const [photos, setPhotos] = useState<string[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -64,6 +65,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
           meetingDate: client.meetingDate.slice(0, 16),
           status: client.status,
           propertyPhotos: client.propertyPhotos || [],
+          listingUrl: client.listingUrl || '',
+          comments: client.comments || '',
         });
         setPhotos(client.propertyPhotos || []);
       } else {
@@ -74,13 +77,15 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
           meetingDate: new Date().toISOString().slice(0, 16),
           status: 'planned',
           propertyPhotos: [],
+          listingUrl: '',
+          comments: '',
         });
         setPhotos([]);
       }
     }
   }, [open, client]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -106,47 +111,6 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleVoiceInput = () => {
-    if (!isSpeechRecognitionSupported()) {
-      alert('Ваш браузер не поддерживает голосовой ввод. Используйте Chrome или Edge.');
-      return;
-    }
-
-    const recognition = createSpeechRecognition();
-    recognition.lang = 'ru-RU';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    setIsRecording(true);
-
-    recognition.start();
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript.trim();
-      console.log('Распознано:', transcript);
-
-      const parsed = parseVoiceInput(transcript);
-
-      setFormData((prev) => ({
-        ...prev,
-        fullName: parsed.fullName || prev.fullName,
-        phone: parsed.phone || prev.phone,
-        address: parsed.address || prev.address,
-      }));
-      setIsRecording(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Ошибка голосового ввода:', event.error);
-      setIsRecording(false);
-      alert('Не удалось распознать речь. Попробуйте снова.');
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-  };
-
   const handleSave = async () => {
     try {
       const clientData: Omit<Client, 'id' | 'createdAt'> = {
@@ -155,6 +119,8 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
         address: formData.address,
         meetingDate: formData.meetingDate,
         status: formData.status,
+        listingUrl: formData.listingUrl,
+        comments: formData.comments,
       };
 
       if (photos.length > 0) {
@@ -219,70 +185,74 @@ export default function AddClientForm({ open, onCancel, onSave, client }: AddCli
       </DialogTitle>
 
       <DialogContent sx={{ p: 2.5 }}>
-        {/* Голосовой ввод */}
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant={isRecording ? 'contained' : 'outlined'}
-            color={isRecording ? 'error' : 'secondary'}
-            startIcon={isRecording ? <DownloadIcon /> : <MicIcon />}
-            onClick={handleVoiceInput}
-            fullWidth
-            sx={{
-              borderRadius: '16px',
-              py: 1.2,
-              fontWeight: 'medium',
-              textTransform: 'none',
-            }}
-          >
-            {isRecording ? 'Говорите...' : 'Диктовать данные'}
-          </Button>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.85rem' }}>
-            Пример: <i>«ФИО — Щемелев Алексей. Телефон — 9155151. Адрес — улица Ленина, 10»</i>
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <VoiceTextField
             label="ФИО"
             name="fullName"
             value={formData.fullName}
             onChange={handleChange}
-            fullWidth
             required
-            size="small"
-            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
+            onVoiceInput={(text) => setFormData(prev => ({ ...prev, fullName: text }))}
           />
-          <TextField
+
+          <VoiceTextField
             label="Телефон"
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            fullWidth
             required
-            size="small"
-            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
+            onVoiceInput={(text) => setFormData(prev => ({ ...prev, phone: text }))}
           />
-          <TextField
+
+          <VoiceTextField
             label="Адрес"
             name="address"
             value={formData.address}
             onChange={handleChange}
-            fullWidth
             required
-            size="small"
-            sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
+            onVoiceInput={(text) => setFormData(prev => ({ ...prev, address: text }))}
           />
+
+          <Box sx={{ position: 'relative' }}>
+            <TextField
+              label="Дата и время встречи"
+              name="meetingDate"
+              type="datetime-local"
+              value={formData.meetingDate}
+              onChange={handleChange}
+              fullWidth
+              required
+              size="small"
+              InputLabelProps={{ shrink: true }}
+              sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
+            />
+          </Box>
+
+          {/* Ссылка — без голоса */}
           <TextField
-            label="Дата и время встречи"
-            name="meetingDate"
-            type="datetime-local"
-            value={formData.meetingDate}
+            label="Ссылка на объявление"
+            name="listingUrl"
+            value={formData.listingUrl || ''}
             onChange={handleChange}
             fullWidth
-            required
             size="small"
-            InputLabelProps={{ shrink: true }}
+            placeholder="https://example.com/12345"
             sx={{ '& .MuiInputBase-root': { borderRadius: '12px' } }}
+            InputProps={{
+              startAdornment: (
+                <LinkIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+              ),
+            }}
+          />
+
+          <VoiceTextField
+            label="Комментарии"
+            name="comments"
+            value={formData.comments || ''}
+            onChange={handleChange}
+            multiline
+            minRows={3}
+            onVoiceInput={(text) => setFormData(prev => ({ ...prev, comments: text }))}
           />
 
           {/* Фото объекта */}

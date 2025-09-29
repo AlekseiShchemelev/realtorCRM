@@ -20,6 +20,15 @@ const getCurrentUserId = () => {
   return auth.currentUser?.uid;
 };
 
+// Вспомогательная функция для обработки ошибок сети
+const handleNetworkError = (err: any) => {
+  if (err.code === 'ERR_NETWORK' || !navigator.onLine) {
+    alert('Изменения сохранены. Синхронизация произойдёт автоматически при подключении к интернету.');
+    return true; // ошибка обработана
+  }
+  return false; // ошибка не связана с сетью
+};
+
 export const getClients = async (): Promise<Client[]> => {
   const userId = getCurrentUserId();
   if (!userId) return [];
@@ -33,21 +42,36 @@ export const addClient = async (client: Omit<Client, 'id' | 'createdAt'>): Promi
   const userId = getCurrentUserId();
   if (!userId) throw new Error('Пользователь не авторизован');
 
-  const docRef = await addDoc(clientsCollection, {
-    ...client,
-    userId,
-    createdAt: new Date().toISOString(),
-  });
-  return docRef.id;
+  try {
+    const docRef = await addDoc(clientsCollection, {
+      ...client,
+      userId,
+      createdAt: new Date().toISOString(),
+    });
+    return docRef.id;
+  } catch (err: any) {
+    if (handleNetworkError(err)) {
+      // Возвращаем временный ID для UI (опционально)
+      return `temp_${Date.now()}`;
+    }
+    throw err; // пробрасываем остальные ошибки
+  }
 };
 
 export const updateClient = async (id: string, updates: Partial<Client>) => {
   const userId = getCurrentUserId();
   if (!userId) throw new Error('Пользователь не авторизован');
 
-  const clientDoc = doc(db, 'clients', id);
-  // Дополнительно можно проверить, что документ принадлежит пользователю
-  await updateDoc(clientDoc, updates);
+  try {
+    const clientDoc = doc(db, 'clients', id);
+    await updateDoc(clientDoc, updates);
+  } catch (err: any) {
+    if (handleNetworkError(err)) {
+      // Ничего не делаем — SW сам синхронизирует позже
+      return;
+    }
+    throw err;
+  }
 };
 
 export const deleteClient = async (id: string) => {

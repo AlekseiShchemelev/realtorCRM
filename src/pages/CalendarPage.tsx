@@ -178,6 +178,14 @@ export default function CalendarPage() {
     }
   };
 
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    }
+    return false;
+  };
+
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2 }, maxWidth: 1200, mx: 'auto' }}>
       <Typography variant="h5" fontWeight="bold" gutterBottom>
